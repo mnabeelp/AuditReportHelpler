@@ -7,6 +7,7 @@ from pathlib import Path
 from .ocr import prepare_images, extract_entries, ocr_text
 from .excel import write_excel, write_csv
 from .zoho import write_zoho_csv
+from .zoho_formats import FORMATS, FORMAT_LABELS, write as write_zoho_format, write_all as write_zoho_all
 
 
 def cmd_scan(args):
@@ -34,15 +35,22 @@ def cmd_scan(args):
     base = Path(input_path).stem
     xlsx = out_dir / f"{base}_audit.xlsx"
     csvp = out_dir / f"{base}_audit.csv"
-    zoho = out_dir / f"{base}_zoho.csv"
 
     write_excel(entries, str(xlsx))
     write_csv(entries, str(csvp))
-    write_zoho_csv(entries, str(zoho))
 
-    print(f"Excel  -> {xlsx}")
-    print(f"CSV    -> {csvp}")
-    print(f"Zoho   -> {zoho}")
+    fmt = getattr(args, "zoho_format", "expenses")
+    if fmt == "all":
+        zip_path = write_zoho_all(entries, str(out_dir), base)
+        print(f"Excel  -> {xlsx}")
+        print(f"CSV    -> {csvp}")
+        print(f"Zoho   -> {zip_path} (all formats)")
+    else:
+        zoho = out_dir / f"{base}_zoho_{fmt}.csv"
+        write_zoho_format(fmt, entries, str(zoho))
+        print(f"Excel  -> {xlsx}")
+        print(f"CSV    -> {csvp}")
+        print(f"Zoho ({FORMAT_LABELS.get(fmt, fmt)}) -> {zoho}")
 
     if args.dump_json:
         print(json.dumps(entries, indent=2, ensure_ascii=False))
@@ -60,6 +68,9 @@ def main(argv=None):
     scan.add_argument("-o", "--output-dir", default="./output", help="Output directory.")
     scan.add_argument("--text-only", action="store_true", help="Only produce raw OCR text.")
     scan.add_argument("--dump-json", action="store_true", help="Print extracted JSON to stdout.")
+    scan.add_argument("--format", dest="zoho_format", default="expenses",
+                      choices=list(FORMATS.keys()) + ["all"],
+                      help="Zoho Books import format (or \"all\" for a zip of every format).")
     scan.set_defaults(func=cmd_scan)
 
     args = parser.parse_args(argv)

@@ -2,12 +2,14 @@
 import os
 import uuid
 from pathlib import Path
+from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file
 
 from .ocr import prepare_images, extract_entries
 from .excel import write_excel, write_csv
 from .zoho import write_zoho_csv
+from .zoho_formats import FORMATS, FORMAT_LABELS, write as write_zoho_format, write_all as write_zoho_all
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = BASE_DIR / "templates"
@@ -26,6 +28,9 @@ def index():
 @app.route("/scan", methods=["POST"])
 def scan():
     files = request.files.getlist("files")
+    fmt = request.form.get("format", "expenses")
+    if fmt not in list(FORMATS.keys()) + ["all"]:
+        fmt = "expenses"
     if not files:
         return jsonify({"error": "No files uploaded."}), 400
 
@@ -61,17 +66,25 @@ def scan():
     base = "audit"
     xlsx = out_dir / f"{base}.xlsx"
     csvp = out_dir / f"{base}.csv"
-    zoho = out_dir / f"{base}_zoho.csv"
 
     write_excel(entries, str(xlsx))
     write_csv(entries, str(csvp))
-    write_zoho_csv(entries, str(zoho))
 
-    downloads = [
-        {"label": "Download Excel (.xlsx)", "url": f"/download/{job_id}/audit.xlsx"},
-        {"label": "Download CSV", "url": f"/download/{job_id}/audit.csv"},
-        {"label": "Download Zoho CSV", "url": f"/download/{job_id}/audit_zoho.csv"},
-    ]
+    if fmt == "all":
+        zip_path = Path(write_zoho_all(entries, str(out_dir), base))
+        downloads = [
+            {"label": "Download Excel (.xlsx)", "url": f"/download/{job_id}/audit.xlsx"},
+            {"label": "Download CSV", "url": f"/download/{job_id}/audit.csv"},
+            {"label": "Download ALL Zoho formats (zip)", "url": f"/download/{job_id}/{zip_path.name}"},
+        ]
+    else:
+        zoho = out_dir / f"{base}_zoho_{fmt}.csv"
+        write_zoho_format(fmt, entries, str(zoho))
+        downloads = [
+            {"label": "Download Excel (.xlsx)", "url": f"/download/{job_id}/audit.xlsx"},
+            {"label": "Download CSV", "url": f"/download/{job_id}/audit.csv"},
+            {"label": f"Download Zoho {FORMAT_LABELS.get(fmt, fmt)} CSV", "url": f"/download/{job_id}/audit_zoho_{fmt}.csv"},
+        ]
 
     return jsonify({
         "count": len(entries),

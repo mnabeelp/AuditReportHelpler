@@ -37,6 +37,19 @@
         <input id="files" type="file" accept="image/*,application/pdf" multiple>
       </div>
       <ul class="files" id="fileList"></ul>
+      <div style="margin:12px 0">
+        <label for="format" style="font-size:.9rem;font-weight:600">Zoho export format</label>
+        <select id="format" name="format" style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #ccc;font-size:1rem">
+          <option value="expenses">Expenses</option>
+          <option value="bills">Bills</option>
+          <option value="invoices">Invoices</option>
+          <option value="journals">Journals</option>
+          <option value="bank">Bank Transactions</option>
+          <option value="purchase_orders">Purchase Orders</option>
+          <option value="sales_orders">Sales Orders</option>
+          <option value="all">All formats (zip)</option>
+        </select>
+      </div>
       <button type="submit" class="primary" style="width:100%">Scan &amp; Export</button>
     </form>
 
@@ -65,6 +78,7 @@
       if (!selected.length) { alert('Please select or capture at least one file.'); return; }
       const fd = new FormData();
       selected.forEach(f => fd.append('files', f));
+      fd.append('format', document.getElementById('format').value);
       status.style.display = 'block';
       results.innerHTML = '';
       try {
