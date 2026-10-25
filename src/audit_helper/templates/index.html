@@ -50,6 +50,10 @@
           <option value="all">All formats (zip)</option>
         </select>
       </div>
+      <div style="margin:12px 0">
+        <label for="ollama_url" style="font-size:.85rem">Ollama URL (optional, to use another machine's CPU/GPU)</label>
+        <input id="ollama_url" name="ollama_url" type="text" placeholder="http://100.x.x.x:11434" style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #ccc;font-size:1rem">
+      </div>
       <button type="submit" class="primary" style="width:100%">Scan &amp; Export</button>
     </form>
 
@@ -79,6 +83,7 @@
       const fd = new FormData();
       selected.forEach(f => fd.append('files', f));
       fd.append('format', document.getElementById('format').value);
+      fd.append('ollama_url', document.getElementById('ollama_url').value);
       status.style.display = 'block';
       results.innerHTML = '';
       try {

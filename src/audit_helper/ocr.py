@@ -8,6 +8,26 @@ from pathlib import Path
 import requests
 
 from .config import OCR_MODEL, OLLAMA_BASE_URL, OCR_TIMEOUT
+from PIL import Image
+
+
+MAX_IMAGE_SIDE = int(os.getenv("MAX_IMAGE_SIDE", "1280"))
+
+
+def _resize_image(path: str) -> str:
+    """Resize image to MAX_IMAGE_SIDE on longest side for faster OCR. Returns path (may be new)."""
+    try:
+        img = Image.open(path)
+        w, h = img.size
+        if max(w, h) <= MAX_IMAGE_SIDE:
+            return path
+        scale = MAX_IMAGE_SIDE / max(w, h)
+        new = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        out = path.rsplit(".", 1)[0] + "_rs.png"
+        new.save(out)
+        return out
+    except Exception:
+        return path
 
 
 def _image_to_base64(path: str) -> str:
@@ -27,7 +47,7 @@ def _pdf_pages_to_images(path: str, dpi: int = 200) -> list[str]:
         pix = page.get_pixmap(dpi=dpi)
         img_path = out_dir / f"{Path(path).stem}_p{i + 1}.png"
         pix.save(str(img_path))
-        images.append(str(img_path))
+        images.append(_resize_image(str(img_path)))
     doc.close()
     return images
 
@@ -41,7 +61,7 @@ def prepare_images(input_path: str) -> list[str]:
     if ext == ".pdf":
         return _pdf_pages_to_images(str(p))
     if ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"}:
-        return [str(p)]
+        return [_resize_image(str(p))]
     raise ValueError(f"Unsupported file type: {ext}")
 
 
@@ -68,7 +88,7 @@ Rules:
 """
 
 
-def extract_entries(image_paths: list[str]) -> list[dict]:
+def extract_entries(image_paths: list[str], base_url: str = None) -> list[dict]:
     """Run OCR+extraction on the given images and return a list of entry dicts."""
     images_b64 = [_image_to_base64(p) for p in image_paths]
 
@@ -79,7 +99,8 @@ def extract_entries(image_paths: list[str]) -> list[dict]:
         "stream": False,
         "options": {"temperature": 0.1},
     }
-    url = f"{OLLAMA_BASE_URL}/api/generate"
+    url_base = base_url or OLLAMA_BASE_URL
+    url = f"{url_base}/api/generate"
     resp = requests.post(url, json=payload, timeout=OCR_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
@@ -104,7 +125,7 @@ def extract_entries(image_paths: list[str]) -> list[dict]:
     return entries
 
 
-def ocr_text(image_paths: list[str]) -> str:
+def ocr_text(image_paths: list[str], base_url: str = None) -> str:
     """Plain OCR: return raw text from images (no structuring)."""
     images_b64 = [_image_to_base64(p) for p in image_paths]
     payload = {
@@ -114,7 +135,8 @@ def ocr_text(image_paths: list[str]) -> str:
         "stream": False,
         "options": {"temperature": 0.0},
     }
-    url = f"{OLLAMA_BASE_URL}/api/generate"
+    url_base = base_url or OLLAMA_BASE_URL
+    url = f"{url_base}/api/generate"
     resp = requests.post(url, json=payload, timeout=OCR_TIMEOUT)
     resp.raise_for_status()
     return (resp.json().get("response") or "").strip()

@@ -81,7 +81,8 @@ def scan():
             return jsonify({"error": f"Unsupported file {p}: {e}"}), 400
 
     try:
-        entries = extract_entries(all_images)
+        ollama_url = request.form.get("ollama_url", "").strip() or None
+        entries = extract_entries(all_images, base_url=ollama_url)
     except Exception as e:
         return jsonify({"error": f"OCR failed: {e}"}), 500
 

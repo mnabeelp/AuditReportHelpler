@@ -53,13 +53,14 @@ def cmd_scan(args):
     print(f"Prepared {len(images)} image(s) for OCR.")
 
     if args.text_only:
-        text = ocr_text(images)
+        text = ocr_text(images, base_url=getattr(args, "ollama_url", None))
         out_txt = out_dir / (Path(input_path).stem + "_ocr.txt")
         out_txt.write_text(text, encoding="utf-8")
         print(f"OCR text saved to {out_txt}")
         return
 
-    entries = extract_entries(images)
+    ollama_url = getattr(args, "ollama_url", None)
+    entries = extract_entries(images, base_url=ollama_url)
     print(f"Extracted {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}.")
 
     if not entries:
@@ -179,6 +180,8 @@ def main(argv=None):
                       help="Zoho Books import format (or 'all' for a zip of every format).")
     scan.add_argument("--mode", default="both", choices=["entries", "taccounts", "both"],
                       help="Output mode.")
+    scan.add_argument("--ollama-url", default=None,
+                      help="Ollama base URL (default: local). Use your browsing machine IP to offload OCR.")
     scan.set_defaults(func=cmd_scan)
 
     args = parser.parse_args(argv)
