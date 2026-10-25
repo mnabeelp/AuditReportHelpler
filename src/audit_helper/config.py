@@ -13,7 +13,10 @@ OCR_TIMEOUT = int(os.getenv("OCR_TIMEOUT", "300"))
 DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY", "USD")
 
 # RunPod Serverless endpoint (optional override for remote Ollama endpoint)
-RUNPOD_ENDPOINT_URL = os.getenv("RUNPOD_ENDPOINT_URL", None)
+RUNPOD_ENDPOINT_URL = os.getenv(
+    "RUNPOD_ENDPOINT_URL",
+    "https://api.runpod.io/v2/endpoints/xhbwqbqyz503ug/openai/v1",
+)
 # Max spend per session/document in USD to enforce budget ceiling
 MAX_SPEND_USD = float(os.getenv("MAX_SPEND_USD", "2.00"))
 # Approx RunPod GPU hourly rate used for rough cost estimation (shared A10G)

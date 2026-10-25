@@ -7,7 +7,7 @@ from pathlib import Path
 
 import requests
 
-from .config import OCR_MODEL, OLLAMA_BASE_URL, OCR_TIMEOUT
+from .config import OCR_MODEL, OLLAMA_BASE_URL, OCR_TIMEOUT, RUNPOD_ENDPOINT_URL
 from PIL import Image
 
 
@@ -99,7 +99,7 @@ def extract_entries(image_paths: list[str], base_url: str = None) -> list[dict]:
         "stream": False,
         "options": {"temperature": 0.1},
     }
-    url_base = base_url or OLLAMA_BASE_URL
+    url_base = base_url or (RUNPOD_ENDPOINT_URL if RUNPOD_ENDPOINT_URL else OLLAMA_BASE_URL)
     url = f"{url_base}/api/generate"
     resp = requests.post(url, json=payload, timeout=OCR_TIMEOUT)
     resp.raise_for_status()
@@ -145,7 +145,7 @@ def ocr_text(image_paths: list[str], base_url: str = None) -> str:
         "stream": False,
         "options": {"temperature": 0.0},
     }
-    url_base = base_url or OLLAMA_BASE_URL
+    url_base = base_url or (RUNPOD_ENDPOINT_URL if RUNPOD_ENDPOINT_URL else OLLAMA_BASE_URL)
     url = f"{url_base}/api/generate"
     resp = requests.post(url, json=payload, timeout=OCR_TIMEOUT)
     resp.raise_for_status()
