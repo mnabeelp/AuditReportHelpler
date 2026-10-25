@@ -122,6 +122,16 @@ def extract_entries(image_paths: list[str], base_url: str = None) -> list[dict]:
         entries = []
     if not isinstance(entries, list):
         entries = [entries] if isinstance(entries, dict) else []
+    # Cost tracking: use prompt_eval_count and eval_count from Ollama response
+    try:
+        from . import cost
+        cost.init_session()
+        cost.record_scan(
+            data.get("prompt_eval_count", 0),
+            data.get("eval_count", 0),
+        )
+    except Exception:
+        pass
     return entries
 
 

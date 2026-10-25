@@ -12,6 +12,7 @@ dependencies = [
     "pillow>=13.0.0",
     "pymupdf>=2.0",
     "requests>=2.34.2",
+    "runpod>=1.12.0",
     "sqlmodel>=0.0.48",
 ]
 

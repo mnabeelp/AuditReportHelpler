@@ -11,3 +11,12 @@ OCR_TIMEOUT = int(os.getenv("OCR_TIMEOUT", "300"))
 
 # Default currency for extracted entries.
 DEFAULT_CURRENCY = os.getenv("DEFAULT_CURRENCY", "USD")
+
+# RunPod Serverless endpoint (optional override for remote Ollama endpoint)
+RUNPOD_ENDPOINT_URL = os.getenv("RUNPOD_ENDPOINT_URL", None)
+# Max spend per session/document in USD to enforce budget ceiling
+MAX_SPEND_USD = float(os.getenv("MAX_SPEND_USD", "2.00"))
+# Approx RunPod GPU hourly rate used for rough cost estimation (shared A10G)
+RUNPOD_HOURLY_RATE = float(os.getenv("RUNPOD_HOURLY_RATE", "0.22"))
+# Tokens per second rough GPU throughput estimate for qwen2.5vl:7b
+TOKENS_PER_SECOND = int(os.getenv("TOKENS_PER_SECOND", "80"))

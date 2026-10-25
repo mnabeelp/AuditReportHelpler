@@ -6,13 +6,14 @@ from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file
 
-from .ocr import prepare_images, extract_entries
+from .runpod_ocr import run_ocr, extract_entries as runpod_extract
 from .excel import write_csv, write_full_workbook
 from .zoho_formats import FORMATS, FORMAT_LABELS, write as write_zoho_format, write_all as write_zoho_all
 from .db import get_session
 from .models import CompanyProfile, Document, Transaction, Verification
 from .verify import verify_all
 from .taccounts import make_postings, validate_balance
+from . import cost as cost_mod
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = BASE_DIR / "templates"
@@ -82,7 +83,7 @@ def scan():
 
     try:
         ollama_url = request.form.get("ollama_url", "").strip() or None
-        entries = extract_entries(all_images, base_url=ollama_url)
+        entries, cost_info = runpod_extract(all_images, base_url=ollama_url)
     except Exception as e:
         return jsonify({"error": f"OCR failed: {e}"}), 500
 
@@ -178,7 +179,14 @@ def scan():
         "entries": verified,
         "balanced": validate_balance(postings),
         "downloads": downloads,
+        "cost": cost_mod.get_status(),
     })
+
+
+@app.route("/cost")
+def cost_status():
+    from . import cost
+    return jsonify(cost.get_status())
 
 
 @app.route("/download/<job_id>/<filename>")

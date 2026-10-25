@@ -60,9 +60,22 @@
 
     <div class="status" id="status">Processing… this may take a while on first run.</div>
     <div class="results" id="results"></div>
+  <div class="status" id="cost" style="margin-top:16px;display:none">
+    <strong>RunPod Cost:</strong> <span id="costText"></span>
+  </div>
   </div>
 
   <script>
+    async function loadCost() {
+      try {
+        const r = await fetch('/cost');
+        const d = await r.json();
+        document.getElementById('cost').style.display = 'block';
+        document.getElementById('costText').textContent =
+          `Scans: ${d.scans} | In: ${d.tokens_in} | Out: ${d.tokens_out} | Est: $${d.estimated_usd} / $${d.budget} | ${d.under_budget ? 'OK' : 'OVER BUDGET'}`;
+      } catch(e) {}
+    }
+    loadCost();
     const camera = document.getElementById('camera');
     const files = document.getElementById('files');
     const list = document.getElementById('fileList');
@@ -125,6 +138,7 @@
           html += '</table>';
         }
         results.innerHTML = html;
+        loadCost();
       } catch (err) {
         status.style.display = 'none';
         results.innerHTML = '<p style="color:#c00">Request failed: ' + err + '</p>';
