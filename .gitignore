@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+uv.lock.bak
+
+# uv
+.venv/
+
+# Project outputs
+output/
+*.xlsx
+*.csv
+
+# OCR temp pages
+**/.audit_pages/
+
+# OS
+.DS_Store
