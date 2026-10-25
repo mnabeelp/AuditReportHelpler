@@ -131,3 +131,138 @@ def write_csv(entries: list[dict], output_path: str) -> str:
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, index=False)
     return str(out)
+
+
+POSTING_COLUMNS = [
+    "Date", "Account", "Debit", "Credit", "Offset Account",
+    "Description", "Reference", "Vendor", "Classification",
+]
+
+FLAGGED_COLUMNS = [
+    "Date", "Vendor", "Doc Number", "Description", "Account", "Amount",
+    "Currency", "Classification", "Reason", "Account Holder",
+]
+
+OWNER_COLUMNS = [
+    "Date", "Owner", "Type", "Account", "Debit", "Credit", "Description", "Reference",
+]
+
+VERIFY_LOG_COLUMNS = [
+    "Transaction ID", "Date", "Vendor", "Description", "Amount",
+    "Original Classification", "Effective Classification", "Overridden", "Note",
+]
+
+
+def write_full_workbook(
+    entries: list[dict],
+    postings: list[dict],
+    flagged: list[dict],
+    verifications: list[dict],
+    output_path: str,
+) -> str:
+    """Write a comprehensive workbook with all audit sheets."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+
+    # --- Audit Entries (classified) ---
+    ws = wb.active
+    ws.title = "Audit Entries"
+    cols = COLUMNS  # reuse
+    hdr_fill = PatternFill("solid", fgColor="1F4E79")
+    hdr_font = Font(bold=True, color="FFFFFF")
+    thin = Side(style="thin", color="BFBFBF")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    for c, col in enumerate(cols, start=1):
+        cell = ws.cell(row=1, column=c, value=col)
+        cell.fill = hdr_fill; cell.font = hdr_font; cell.border = border
+    for r, e in enumerate(entries, start=2):
+        row = _normalize(e, e.get("_source", ""))
+        row["Classification"] = e.get("classification")
+        for c, col in enumerate(cols, start=1):
+            v = row.get(col)
+            cell = ws.cell(row=r, column=c, value=v)
+            cell.border = border
+            if col in ("Amount", "Tax"):
+                cell.number_format = "#,##0.00"
+
+    # --- T-Accounts ---
+    wst = wb.create_sheet("T-Accounts")
+    for c, col in enumerate(POSTING_COLUMNS, start=1):
+        cell = wst.cell(row=1, column=c, value=col)
+        cell.fill = hdr_fill; cell.font = hdr_font; cell.border = border
+    for r, p in enumerate(postings, start=2):
+        vals = [p.get("date"), p.get("account"), p.get("debit", 0), p.get("credit", 0),
+                p.get("offset_account"), p.get("description"), p.get("reference"),
+                p.get("vendor"), p.get("classification")]
+        for c, v in enumerate(vals, start=1):
+            cell = wst.cell(row=r, column=c, value=v)
+            cell.border = border
+            if c in (3, 4):
+                cell.number_format = "#,##0.00"
+
+    # --- Flagged Transactions ---
+    wsf = wb.create_sheet("Flagged")
+    for c, col in enumerate(FLAGGED_COLUMNS, start=1):
+        cell = wsf.cell(row=1, column=c, value=col)
+        cell.fill = PatternFill("solid", fgColor="C00000"); cell.font = hdr_font; cell.border = border
+    for r, f in enumerate(flagged, start=2):
+        vals = [f.get("date"), f.get("vendor"), f.get("doc_number"), f.get("description"),
+                f.get("account"), f.get("amount"), f.get("currency"), f.get("classification"),
+                f.get("reason", ""), f.get("account_holder_name")]
+        for c, v in enumerate(vals, start=1):
+            cell = wsf.cell(row=r, column=c, value=v)
+            cell.border = border
+            if c == 6:
+                cell.number_format = "#,##0.00"
+
+    # --- Owner / Investor Activity ---
+    wso = wb.create_sheet("Owner Activity")
+    for c, col in enumerate(OWNER_COLUMNS, start=1):
+        cell = wso.cell(row=1, column=c, value=col)
+        cell.fill = PatternFill("solid", fgColor="7F6000"); cell.font = hdr_font; cell.border = border
+    owner_rows = [p for p in postings if p.get("classification") == "owner"]
+    for r, p in enumerate(owner_rows, start=2):
+        vals = [p.get("date"), p.get("vendor"), p.get("owner_type"), p.get("account"),
+                p.get("debit", 0), p.get("credit", 0), p.get("description"), p.get("reference")]
+        for c, v in enumerate(vals, start=1):
+            cell = wso.cell(row=r, column=c, value=v)
+            cell.border = border
+            if c in (5, 6):
+                cell.number_format = "#,##0.00"
+
+    # --- Verification Log ---
+    wsv = wb.create_sheet("Verification Log")
+    for c, col in enumerate(VERIFY_LOG_COLUMNS, start=1):
+        cell = wsv.cell(row=1, column=c, value=col)
+        cell.fill = hdr_fill; cell.font = hdr_font; cell.border = border
+    for r, v in enumerate(verifications, start=2):
+        vals = [v.get("transaction_id"), v.get("date"), v.get("vendor"), v.get("description"),
+                v.get("amount"), v.get("original"), v.get("effective"),
+                "Yes" if v.get("overridden") else "No", v.get("note")]
+        for c, val in enumerate(vals, start=1):
+            cell = wsv.cell(row=r, column=c, value=val)
+            cell.border = border
+            if c == 5:
+                cell.number_format = "#,##0.00"
+
+    # --- Summary ---
+    summary = wb.create_sheet("Summary")
+    summary["A1"] = "Audit Report Summary"; summary["A1"].font = Font(bold=True, size=14)
+    summary["A3"] = "Total entries"; summary["B3"] = len(entries)
+    summary["A4"] = "Total postings"; summary["B4"] = len(postings)
+    summary["A5"] = "Flagged"; summary["B5"] = len(flagged)
+    summary["A6"] = "Owner postings"; summary["B6"] = len(owner_rows)
+    td = sum(p.get("debit") or 0 for p in postings)
+    tc = sum(p.get("credit") or 0 for p in postings)
+    summary["A7"] = "Total debits"; summary["B7"] = td; summary["B7"].number_format = "#,##0.00"
+    summary["A8"] = "Total credits"; summary["B8"] = tc; summary["B8"].number_format = "#,##0.00"
+    summary["A9"] = "Balanced"; summary["B9"] = abs(td - tc) < 0.005
+
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(str(out))
+    return str(out)
