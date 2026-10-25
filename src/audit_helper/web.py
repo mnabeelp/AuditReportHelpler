@@ -6,6 +6,7 @@ from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, send_file
 
+from .ocr import prepare_images
 from .runpod_ocr import run_ocr, extract_entries as runpod_extract
 from .excel import write_csv, write_full_workbook
 from .zoho_formats import FORMATS, FORMAT_LABELS, write as write_zoho_format, write_all as write_zoho_all
