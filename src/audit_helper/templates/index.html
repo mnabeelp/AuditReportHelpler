@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audit Report Helper</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: #f5f7fa; color: #222; }
+    .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.08); max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 8px; }
+    p.sub { color: #555; font-size: .9rem; margin: 0 0 16px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    button, label.btn { flex: 1; min-width: 140px; padding: 14px; font-size: 1rem; border: none; border-radius: 10px; cursor: pointer; text-align: center; }
+    .primary { background: #1F4E79; color: #fff; }
+    .secondary { background: #e8eef5; color: #1F4E79; }
+    input[type=file] { display: none; }
+    .files { margin: 12px 0; font-size: .85rem; color: #444; }
+    .files li { word-break: break-all; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; background: #eef6ff; display: none; }
+    .results { margin-top: 16px; }
+    .results a { display: block; padding: 10px; margin: 6px 0; background: #1F4E79; color: #fff; border-radius: 8px; text-decoration: none; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .8rem; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+    th { background: #1F4E79; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Audit Report Helper</h1>
+    <p class="sub">Upload or capture documents/images on your phone. OCR extracts entries into an Excel table and a Zoho-ready CSV.</p>
+
+    <form id="form" enctype="multipart/form-data">
+      <div class="row">
+        <label class="btn primary" for="camera">📷 Take Photo</label>
+        <input id="camera" type="file" accept="image/*" capture="environment" multiple>
+        <label class="btn secondary" for="files">📁 Choose Files</label>
+        <input id="files" type="file" accept="image/*,application/pdf" multiple>
+      </div>
+      <ul class="files" id="fileList"></ul>
+      <button type="submit" class="primary" style="width:100%">Scan &amp; Export</button>
+    </form>
+
+    <div class="status" id="status">Processing… this may take a while on first run.</div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <script>
+    const camera = document.getElementById('camera');
+    const files = document.getElementById('files');
+    const list = document.getElementById('fileList');
+    const form = document.getElementById('form');
+    const status = document.getElementById('status');
+    const results = document.getElementById('results');
+    let selected = [];
+
+    function refresh() {
+      list.innerHTML = '';
+      selected.forEach(f => { const li = document.createElement('li'); li.textContent = f.name; list.appendChild(li); });
+    }
+    camera.addEventListener('change', e => { selected = selected.concat([...e.target.files]); refresh(); });
+    files.addEventListener('change', e => { selected = selected.concat([...e.target.files]); refresh(); });
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!selected.length) { alert('Please select or capture at least one file.'); return; }
+      const fd = new FormData();
+      selected.forEach(f => fd.append('files', f));
+      status.style.display = 'block';
+      results.innerHTML = '';
+      try {
+        const res = await fetch('/scan', { method: 'POST', body: fd });
+        const data = await res.json();
+        status.style.display = 'none';
+        if (!res.ok) { results.innerHTML = '<p style="color:#c00">' + (data.error || 'Error') + '</p>'; return; }
+        let html = '<p>Extracted ' + data.count + ' entr' + (data.count === 1 ? 'y' : 'ies') + '.</p>';
+        if (data.downloads) {
+          data.downloads.forEach(d => { html += '<a href="' + d.url + '" download>' + d.label + '</a>'; });
+        }
+        if (data.entries && data.entries.length) {
+          html += '<table><tr><th>Date</th><th>Vendor</th><th>Description</th><th>Amount</th></tr>';
+          data.entries.forEach(e => {
+            html += '<tr><td>' + (e.date||'') + '</td><td>' + (e.vendor||'') + '</td><td>' + (e.description||'') + '</td><td>' + (e.amount||'') + '</td></tr>';
+          });
+          html += '</table>';
+        }
+        results.innerHTML = html;
+      } catch (err) {
+        status.style.display = 'none';
+        results.innerHTML = '<p style="color:#c00">Request failed: ' + err + '</p>';
+      }
+    });
+  </script>
+</body>
+</html>
