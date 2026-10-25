@@ -37,6 +37,7 @@
         <input id="files" type="file" accept="image/*,application/pdf" multiple>
       </div>
       <ul class="files" id="fileList"></ul>
+      <div id="preview" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0"></div>
       <div style="margin:12px 0">
         <label for="format" style="font-size:.9rem;font-weight:600">Zoho export format</label>
         <select id="format" name="format" style="width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #ccc;font-size:1rem">
@@ -72,7 +73,28 @@
 
     function refresh() {
       list.innerHTML = '';
-      selected.forEach(f => { const li = document.createElement('li'); li.textContent = f.name; list.appendChild(li); });
+      const preview = document.getElementById('preview');
+      preview.innerHTML = '';
+      selected.forEach((f, idx) => {
+        const li = document.createElement('li');
+        li.textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
+        list.appendChild(li);
+        if (f.type && f.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style = 'max-width:120px;max-height:120px;border-radius:8px;border:1px solid #ddd;object-fit:cover';
+            preview.appendChild(img);
+          };
+          reader.readAsDataURL(f);
+        } else {
+          const box = document.createElement('div');
+          box.style = 'width:120px;height:120px;border-radius:8px;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#666;text-align:center;padding:4px';
+          box.textContent = f.name;
+          preview.appendChild(box);
+        }
+      });
     }
     camera.addEventListener('change', e => { selected = selected.concat([...e.target.files]); refresh(); });
     files.addEventListener('change', e => { selected = selected.concat([...e.target.files]); refresh(); });
